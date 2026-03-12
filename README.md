@@ -142,6 +142,8 @@ Checklist:
 - Ensure **Public Networking** is enabled (Railway will inject `PORT`).
 - Ensure `OPENCLAW_ENTRY` points to the built OpenClaw entry file. Default is `/openclaw/dist/entry.js` (only override this for custom image layouts).
 - Check Railway logs for the wrapper error: it will show `Gateway not ready:` with the reason.
+- If startup is slow on your plan/tier, increase readiness wait with `OPENCLAW_GATEWAY_READY_TIMEOUT_MS` (default `45000`).
+- For custom images, ensure `OPENCLAW_ENTRY` points to the CLI entry script (this image defaults to `/openclaw/dist/entry.js`).
 
 ### Legacy CLAWDBOT_* env vars / multiple state directories
 
