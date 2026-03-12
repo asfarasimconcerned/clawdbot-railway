@@ -145,6 +145,31 @@ Checklist:
 - If startup is slow on your plan/tier, increase readiness wait with `OPENCLAW_GATEWAY_READY_TIMEOUT_MS` (default `45000`).
 - For custom images, ensure `OPENCLAW_ENTRY` points to the CLI entry script (this image defaults to `/openclaw/dist/entry.js`).
 
+### Intermittent disconnect/restart logs (Discord/WebSocket)
+
+You may occasionally see logs like:
+- `[health-monitor] ... restarting (reason: disconnected)`
+- `webchat disconnected code=1012 reason=service restart`
+- `[gateway] signal SIGTERM received` / `[gateway] exited code=0`
+
+These are usually **expected during deploy/restart windows** (for example, a new rollout or manual restart). `SIGTERM` with exit code `0` indicates a graceful stop, not a crash.
+
+If these messages repeat continuously outside deploy windows:
+- Verify Railway is not repeatedly redeploying (check Deployments timeline).
+- Check `/healthz` and `/setup/api/debug` for gateway readiness and last error fields.
+- Consider increasing `OPENCLAW_GATEWAY_READY_TIMEOUT_MS` (e.g. `120000`) if startup is slow.
+
+### `[tools] edit failed: Could not find the exact text ... run-loop.ts`
+
+This message comes from an in-app editing tool attempting an exact-text patch against a file path/version that no longer matches.
+
+It is typically **non-fatal** for the wrapper itself and does not necessarily indicate the Railway service crashed.
+
+What to do:
+- Re-run the edit against the current file contents/version.
+- Prefer editing your project/workspace files rather than vendored `node_modules` paths when possible.
+- If you rely on patching internals, pin your OpenClaw version so file paths/content remain stable between deploys.
+
 ### Legacy CLAWDBOT_* env vars / multiple state directories
 
 If you see warnings about deprecated `CLAWDBOT_*` variables or state dir split-brain (e.g. `~/.openclaw` vs `/data/...`):
