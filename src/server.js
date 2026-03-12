@@ -175,12 +175,18 @@ async function startGateway() {
   if (gatewayProc) return;
   if (!isConfigured()) throw new Error("Gateway cannot start: not configured");
 
+  // Reuse an already-running gateway instead of trying to start a second one.
+  const alreadyUp = await probeGateway();
+  if (alreadyUp) {
+    console.log("[wrapper] gateway already reachable; reusing existing process");
+    return;
+  }
+
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
   const args = [
     "gateway",
-    "run",
     "--bind",
     "loopback",
     "--port",
@@ -232,7 +238,18 @@ async function runDoctorBestEffort() {
 
 async function ensureGatewayRunning() {
   if (!isConfigured()) return { ok: false, reason: "not configured" };
+
+  // If the gateway is already reachable, trust it even if this wrapper
+  // does not currently hold the child-process handle.
+  try {
+    const reachable = await probeGateway();
+    if (reachable) return { ok: true, reused: true };
+  } catch {
+    // ignore
+  }
+
   if (gatewayProc) return { ok: true };
+
   if (!gatewayStarting) {
     gatewayStarting = (async () => {
       try {
@@ -245,7 +262,6 @@ async function ensureGatewayRunning() {
       } catch (err) {
         const msg = `[gateway] start failure: ${String(err)}`;
         lastGatewayError = msg;
-        // Collect extra diagnostics to help users file issues.
         await runDoctorBestEffort();
         throw err;
       }
@@ -253,22 +269,9 @@ async function ensureGatewayRunning() {
       gatewayStarting = null;
     });
   }
+
   await gatewayStarting;
   return { ok: true };
-}
-
-async function restartGateway() {
-  if (gatewayProc) {
-    try {
-      gatewayProc.kill("SIGTERM");
-    } catch {
-      // ignore
-    }
-    // Give it a moment to exit and release the port.
-    await sleep(750);
-    gatewayProc = null;
-  }
-  return ensureGatewayRunning();
 }
 
 function requireSetupAuth(req, res, next) {
